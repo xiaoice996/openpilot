@@ -232,12 +232,14 @@ void loggerd_thread() {
   std::unique_ptr<Poller> poller(Poller::create());
 
   const bool lite = getenv("LITE");
-  static const std::set<std::string> ignore_names = {
+  static const std::set<std::string> driver_camera_removed_names = {
     "driverCameraState",
     "driverEncodeIdx",
     "driverStateV2",
     "driverMonitoringState",
     "driverEncodeData",
+  };
+  static const std::set<std::string> lite_ignore_names = {
     // audio logs
     "soundPressure",
     "rawAudioData",
@@ -246,7 +248,8 @@ void loggerd_thread() {
 
   // subscribe to all socks
   for (const auto& [_, it] : services) {
-    if (lite && ignore_names.count(it.name)) continue;
+    if (driver_camera_removed_names.count(it.name)) continue;
+    if (lite && lite_ignore_names.count(it.name)) continue;
     const bool encoder = util::ends_with(it.name, "EncodeData");
     const bool livestream_encoder = util::starts_with(it.name, "livestream");
     const bool record_audio = (it.name == "rawAudioData") && Params().getBool("RecordAudio");

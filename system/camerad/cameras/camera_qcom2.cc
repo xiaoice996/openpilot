@@ -83,7 +83,6 @@ void CameraState::set_exposure_rect() {
     // (Rect, F)
     std::make_pair((Rect){96, 400, 1734, 524}, 567.0),  // wide
     std::make_pair((Rect){96, 160, 1734, 986}, 2648.0), // road
-    std::make_pair((Rect){96, 242, 1736, 906}, 567.0)   // driver
   };
   int h_ref = 1208;
   /*
@@ -240,7 +239,7 @@ void CameraState::sendState() {
     framed.setImage(get_raw_frame_image(&camera.buf));
   }
 
-  set_camera_exposure(calculate_exposure_value(&camera.buf, ae_xywh, 2, camera.cc.stream_type != VISION_STREAM_DRIVER ? 2 : 4));
+  set_camera_exposure(calculate_exposure_value(&camera.buf, ae_xywh, 2, 2));
 
   // Send the message
   pm->send(camera.cc.publish_name, msg);

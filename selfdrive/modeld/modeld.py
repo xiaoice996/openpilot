@@ -281,7 +281,7 @@ def main(demo=False):
 
   # messaging
   pm = PubMaster(["modelV2", "drivingModelData", "cameraOdometry", "modelExt"])
-  sm = SubMaster(["deviceState", "carState", "roadCameraState", "liveCalibration", "driverMonitoringState", "carControl", "liveDelay"])
+  sm = SubMaster(["deviceState", "carState", "roadCameraState", "liveCalibration", "carControl", "liveDelay"])
 
   publish_state = PublishState()
   params = Params()
@@ -355,7 +355,7 @@ def main(demo=False):
 
     sm.update(0)
     desire = DH.desire
-    is_rhd = dp_dev_is_rhd if LITE else sm["driverMonitoringState"].isRHD
+    is_rhd = dp_dev_is_rhd
     frame_id = sm["roadCameraState"].frameId
     v_ego = max(sm["carState"].vEgo, 0.)
     lat_delay = sm["liveDelay"].lateralDelay + LAT_SMOOTH_SECONDS

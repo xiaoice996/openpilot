@@ -53,16 +53,6 @@ const CameraConfig ROAD_CAMERA_CONFIG = {
   .output_type = ISP_IFE_PROCESSED,
 };
 
-const CameraConfig DRIVER_CAMERA_CONFIG = {
-  .camera_num = 2,
-  .stream_type = VISION_STREAM_DRIVER,
-  .focal_len = 1.71,
-  .publish_name = "driverCameraState",
-  .init_camera_state = &cereal::Event::Builder::initDriverCameraState,
-  .enabled = !getenv("DISABLE_DRIVER"),
-  .phy = CAM_ISP_IFE_IN_RES_PHY_2,
-  .vignetting_correction = false,
-  .output_type = ISP_BPS_PROCESSED,
-};
-
-const CameraConfig ALL_CAMERA_CONFIGS[] = {WIDE_ROAD_CAMERA_CONFIG, ROAD_CAMERA_CONFIG, DRIVER_CAMERA_CONFIG};
+// Driver camera hardware is removed on this build. Do not include it in the
+// runtime camera list, otherwise camerad will attempt to open sensor 2.
+const CameraConfig ALL_CAMERA_CONFIGS[] = {WIDE_ROAD_CAMERA_CONFIG, ROAD_CAMERA_CONFIG};

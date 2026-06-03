@@ -53,8 +53,9 @@ def manager_init() -> None:
   if build_metadata.release_channel:
     params.clear_all(ParamKeyFlag.DEVELOPMENT_ONLY)
 
-  if params.get_bool("RecordFrontLock"):
-    params.put_bool("RecordFront", True)
+  # Driver camera hardware is removed on this build.
+  params.put_bool("RecordFront", False)
+  params.put_bool("IsDriverViewEnabled", False)
 
   # set unset params to their default value
   for k in params.all_keys():

@@ -16,7 +16,6 @@ from openpilot.system.manager.process_config import managed_processes
 
 VISION_STREAMS = {
   "roadCameraState": VisionStreamType.VISION_STREAM_ROAD,
-  "driverCameraState": VisionStreamType.VISION_STREAM_DRIVER,
   "wideRoadCameraState": VisionStreamType.VISION_STREAM_WIDE_ROAD,
 }
 
@@ -56,7 +55,7 @@ def extract_image(buf):
   return yuv_to_rgb(y, u, v)
 
 
-def get_snapshots(frame="roadCameraState", front_frame="driverCameraState"):
+def get_snapshots(frame="roadCameraState", front_frame=None):
   sockets = [s for s in (frame, front_frame) if s is not None]
   sm = messaging.SubMaster(sockets)
   vipc_clients = {s: VisionIpcClient("camerad", VISION_STREAMS[s], True) for s in sockets}
@@ -86,7 +85,6 @@ def snapshot():
     print("Already taking snapshot")
     return None, None
 
-  front_camera_allowed = params.get_bool("RecordFront")
   params.put_bool("IsTakingSnapshot", True)
   set_offroad_alert("Offroad_IsTakingSnapshot", True)
   time.sleep(2.0)  # Give hardwared time to read the param, or if just started give camerad time to start
@@ -107,15 +105,11 @@ def snapshot():
       managed_processes['camerad'].start()
 
     frame = "wideRoadCameraState"
-    front_frame = "driverCameraState" if front_camera_allowed else None
-    rear, front = get_snapshots(frame, front_frame)
+    rear, front = get_snapshots(frame, None)
   finally:
     managed_processes['camerad'].stop()
     params.put_bool("IsTakingSnapshot", False)
     set_offroad_alert("Offroad_IsTakingSnapshot", False)
-
-  if not front_camera_allowed:
-    front = None
 
   return rear, front
 

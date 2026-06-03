@@ -30,8 +30,6 @@ DESCRIPTIONS = {
     "Receive alerts to steer back into the lane when your vehicle drifts over a detected lane line " +
     "without a turn signal activated while driving over 31 mph (50 km/h)."
   ),
-  "AlwaysOnDM": tr_noop("Enable driver monitoring even when openpilot is not engaged."),
-  'RecordFront': tr_noop("Upload data from the driver facing camera and help improve the driver monitoring algorithm."),
   "IsMetric": tr_noop("Display speed in km/h instead of mph."),
   "RecordAudio": tr_noop("Record and store microphone audio while driving. The audio will be included in the dashcam video in comma connect."),
   "DisableLogging": tr("Disable logging service"),
@@ -70,18 +68,6 @@ class TogglesLayout(Widget):
         DESCRIPTIONS["IsLdwEnabled"],
         "warning.png",
         False,
-      ),
-      "AlwaysOnDM": (
-        lambda: tr("Always-On Driver Monitoring"),
-        DESCRIPTIONS["AlwaysOnDM"],
-        "monitoring.png",
-        False,
-      ),
-      "RecordFront": (
-        lambda: tr("Record and Upload Driver Camera"),
-        DESCRIPTIONS["RecordFront"],
-        "monitoring.png",
-        True,
       ),
       "RecordAudio": (
         lambda: tr("Record and Upload Microphone Audio"),
