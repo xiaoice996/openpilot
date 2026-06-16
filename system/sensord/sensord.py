@@ -85,6 +85,8 @@ def polling_loop(sensor: Sensor, service: str, event: threading.Event) -> None:
       msg = messaging.new_message(service, valid=True)
       setattr(msg, service, evt)
       pm.send(service, msg)
+    except Sensor.DataNotReady:
+      pass  # Normal in polling mode: data not ready yet
     except Exception:
       cloudlog.exception(f"Error in {service} polling loop")
     rk.keep_time()
@@ -93,8 +95,8 @@ def main() -> None:
   config_realtime_process([1, ], 1)
 
   sensors_cfg = [
-    (LSM6DS3_Accel(I2C_BUS_IMU), "accelerometer", True),
-    (LSM6DS3_Gyro(I2C_BUS_IMU), "gyroscope", True),
+    (LSM6DS3_Accel(I2C_BUS_IMU), "accelerometer", False),
+    (LSM6DS3_Gyro(I2C_BUS_IMU), "gyroscope", False),
     (LSM6DS3_Temp(I2C_BUS_IMU), "temperatureSensor", False),
   ]
   if HARDWARE.get_device_type() == "tizi":
@@ -111,9 +113,11 @@ def main() -> None:
 
   # Initialize sensors
   exit_event = threading.Event()
-  threads = [
-    threading.Thread(target=interrupt_loop, args=(sensors_cfg, exit_event), daemon=True)
-  ]
+  # Only start interrupt_loop if any sensor needs it
+  has_interrupt_sensors = any(interrupt for _, _, interrupt in sensors_cfg)
+  threads = []
+  if has_interrupt_sensors:
+    threads.append(threading.Thread(target=interrupt_loop, args=(sensors_cfg, exit_event), daemon=True))
   for sensor, service, interrupt in sensors_cfg:
     try:
       sensor.init()
