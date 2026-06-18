@@ -57,7 +57,8 @@ class LSM6DS3_Gyro(Sensor):
     self.write(self.LSM6DS3_GYRO_I2C_REG_INT1_CTRL, value)
 
   def get_event(self, ts: int | None = None) -> log.SensorEventData:
-    assert ts is not None  # must come from the IRQ event
+    if ts is None:
+      ts = time.monotonic_ns()  # polling mode: use current time
 
     # Check if gyroscope data is ready, since it's shared with accelerometer
     status_reg = self.read(self.LSM6DS3_GYRO_I2C_REG_STAT_REG, 1)[0]
