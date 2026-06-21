@@ -9,7 +9,7 @@ dp011 是 [dragonpilot](https://jihulab.com/mr-one/openpilot.git) 的单分支 f
 | 项目 | 值 |
 |------|-----|
 | 源仓库 | `https://jihulab.com/mr-one/openpilot.git` (分支 `dragonpilot`) |
-| GitHub | `https://github.com/xiaoice996/openpilot.git` (基线 `dp011`，工作分支 `dp011fix` → `dp011fix1`) |
+| GitHub | `https://github.com/xiaoice996/openpilot.git` (基线 `dp011`，当前工作分支 `dp011fix1`) |
 | 克隆方式 | `--depth=1` 浅克隆 |
 
 ## 网络配置

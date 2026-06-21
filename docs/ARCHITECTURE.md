@@ -11,7 +11,7 @@ dp011 是 **dragonpilot** 的单分支 fork —— 基于 openpilot（开源辅�
 |----|-----|
 | 源仓库 | `https://jihulab.com/mr-one/openpilot.git`（分支 `dragonpilot`，可直连） |
 | GitHub | `https://github.com/xiaoice996/openpilot.git`（分支 `dp011`，需代理） |
-| 本地修复分支 | `dp011fix` / `dp011fix1`（启动加速 II 已推到 `dp011fix1`；见 `CLAUDE.md` 的"本地修改记录"） |
+| 本地修复分支 | `dp011fix1`（启动加速 II/III 已推送；`dp011fix` 为前一版历史分支；见 `CLAUDE.md` 的"本地修改记录"） |
 
 ## 分层架构
 
@@ -87,7 +87,7 @@ dp011 是 **dragonpilot** 的单分支 fork —— 基于 openpilot（开源辅�
 
 ## 本地修复
 
-本 fork 在 `dp011fix` / `dp011fix1` 分支做了硬件适配与启动加速修复，**规则与详细根因见根目录 `CLAUDE.md` 的"本地修改记录"**：
+本 fork 在 `dp011fix1` 分支做了硬件适配与启动加速修复（前一版历史分支为 `dp011fix`），**规则与详细根因见根目录 `CLAUDE.md` 的"本地修改记录"**：
 
 1. **sensord 轮询模式**：GPIO 84 数据就绪中断不触发 → IMU 从中断改轮询；时间戳必须用 `time.monotonic_ns()` 对齐 `logMonoTime`，否则 locationd 丢弃全部 IMU 数据。
 2. **sensorDataInvalid 误报屏蔽**：屏幕 I2C 硬件错误导致超时误判 → 注释超时检测逻辑。
