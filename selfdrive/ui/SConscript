@@ -5,11 +5,27 @@ Import('env', 'arch', 'common')
 # build the fonts
 generator = File("#selfdrive/assets/fonts/process.py")
 source_files = Glob("#selfdrive/assets/fonts/*.ttf") + Glob("#selfdrive/assets/fonts/*.otf")
-output_files = [
-  (f"#{Path(f.path).with_suffix('.fnt')}", f"#{Path(f.path).with_suffix('.png')}")
-  for f in source_files
-  if "NotoColor" not in f.name
-]
+
+# process.py outputs same-stem .fnt/.png for regular fonts (Inter-*, JetBrainsMono-*),
+# but for OpFont-* it emits {stem}-Labels.{fnt,png} plus one atlas per unifont language
+# (th, zh-CHT, zh-CHS, ko, ja). Declaring the wrong targets makes scons re-run process.py
+# on every build, costing ~24s at boot. Keep this list in sync with process.py:UNIFONT_LANGUAGES.
+_UNIFONT_LANGS = ("th", "zh-CHT", "zh-CHS", "ko", "ja")
+
+# process.py:_skipped: NotoColor* and unifont.otf are never emitted as atlases.
+_SKIP_NAMES = ("NotoColor", "unifont.")
+
+def _font_outputs(font_node):
+  p = Path(font_node.path)
+  if any(s in p.name for s in _SKIP_NAMES):
+    return []
+  if p.stem.lower().startswith("opfont"):
+    stems = [f"{p.stem}-Labels"] + [f"{p.stem}-{lang}" for lang in _UNIFONT_LANGS]
+  else:
+    stems = [p.stem]
+  return [(f"#selfdrive/assets/fonts/{s}.fnt", f"#selfdrive/assets/fonts/{s}.png") for s in stems]
+
+output_files = [pair for f in source_files for pair in _font_outputs(f)]
 env.Command(
   target=output_files,
   source=[generator, source_files],
