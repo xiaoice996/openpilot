@@ -9,7 +9,7 @@ dp011 是 [dragonpilot](https://jihulab.com/mr-one/openpilot.git) 的单分支 f
 | 项目 | 值 |
 |------|-----|
 | 源仓库 | `https://jihulab.com/mr-one/openpilot.git` (分支 `dragonpilot`) |
-| GitHub | `https://github.com/xiaoice996/openpilot.git` (分支 `dp011`) |
+| GitHub | `https://github.com/xiaoice996/openpilot.git` (基线 `dp011`，工作分支 `dp011fix` → `dp011fix1`) |
 | 克隆方式 | `--depth=1` 浅克隆 |
 
 ## 网络配置
@@ -75,7 +75,24 @@ jihulab（极狐 GitLab）可直连，无需代理。
   - 结果:scons 每次都判定这些 target 缺失 → 整体重跑 `process.py`(~24 秒)
 - **处理**: 把 OpFont-* 的 6 个真实输出穷举出来,并把 `unifont.otf` 加入跳过列表
 - **效果**: `scons -j6 --minimal` 增量耗时 **47s → 14.7s**;openpilot 启动耗时 **64s → 42s**(节省 22s,实测 2026-06-22)
+- **Commit**: `a517888` (分支 `dp011fix1`,GitHub 已推送)
 - **注意**: 若上游修改 `process.py:UNIFONT_LANGUAGES` 或新增/删除 `OpFont-*` 字体,需同步更新 SConscript 中的 `_UNIFONT_LANGS` 和 `_SKIP_NAMES`
+
+## 启动加速 III — prebuilt 标记跳过 scons + git hook 反向阀门
+
+- **现象**: 即使字体规则已修, `build.py` 每次启动仍跑 ~15s scons (Python 启动 + SConstruct 解析 + generate_settings + compile_commands.json 重建), 实际无任何编译工作
+- **根因**: `launch_chffrplus.sh:159` 有官方设计 `if [ ! -f $DIR/prebuilt ]; then ./build.py; fi` —— 存在 `prebuilt` 标记即跳过 build.py。comma 出厂镜像就用这个机制。但手动维护风险:`git pull` 改了 C++ 源码后,prebuilt 仍在 → 启动时跑旧二进制
+- **处理**:
+  1. 设备 `/data/openpilot/prebuilt` 标记文件 (touch 即可,内容空)
+  2. **反向阀门**(关键):git hook `post-merge` 和 `post-checkout`(branch_flag=1) 自动删除 prebuilt
+     - 文件: `/data/openpilot/.git/hooks/post-merge` 和 `post-checkout`(都需 `chmod +x`)
+     - post-checkout 必须判 `$3=1` 才删, 否则 `git checkout <file>` 单文件会误删
+     - hooks 不受 git 追踪, 设备本地配置
+- **效果**: openpilot 启动耗时 **42s → 26.5s**(节省 15.5s,实测 2026-06-21);累计相对原始 415s 已 **16 倍加速**
+- **注意**:
+  - 重置设备 / 换设备后需重新建 prebuilt 文件 + 重新配置 hooks
+  - 任何直接 `rm /data/openpilot/prebuilt` 或代码改动经 git pull/merge/checkout 后, 下次启动会自动重编(~15s 一次性开销)
+  - 若 hook 失效或被绕过, 需手动 `rm prebuilt` 后再启动, 否则跑旧二进制风险
 
 ## 项目结构速查
 

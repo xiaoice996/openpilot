@@ -11,7 +11,7 @@ dp011 是 **dragonpilot** 的单分支 fork —— 基于 openpilot（开源辅�
 |----|-----|
 | 源仓库 | `https://jihulab.com/mr-one/openpilot.git`（分支 `dragonpilot`，可直连） |
 | GitHub | `https://github.com/xiaoice996/openpilot.git`（分支 `dp011`，需代理） |
-| 本地修复分支 | `dp011fix`（见 `CLAUDE.md` 的"本地修改记录"） |
+| 本地修复分支 | `dp011fix` / `dp011fix1`（启动加速 II 已推到 `dp011fix1`；见 `CLAUDE.md` 的"本地修改记录"） |
 
 ## 分层架构
 
@@ -87,12 +87,14 @@ dp011 是 **dragonpilot** 的单分支 fork —— 基于 openpilot（开源辅�
 
 ## 本地修复
 
-本 fork 在 `dp011fix` 分支做了两处硬件适配修复，**规则与详细根因见根目录 `CLAUDE.md` 的"本地修改记录"**：
+本 fork 在 `dp011fix` / `dp011fix1` 分支做了硬件适配与启动加速修复，**规则与详细根因见根目录 `CLAUDE.md` 的"本地修改记录"**：
 
 1. **sensord 轮询模式**：GPIO 84 数据就绪中断不触发 → IMU 从中断改轮询；时间戳必须用 `time.monotonic_ns()` 对齐 `logMonoTime`，否则 locationd 丢弃全部 IMU 数据。
 2. **sensorDataInvalid 误报屏蔽**：屏幕 I2C 硬件错误导致超时误判 → 注释超时检测逻辑。
+3. **scons 字体规则修复**：`selfdrive/ui/SConscript` 字体 Command 的 target 推导对 `OpFont-*.otf` 与 `unifont.otf` 错误，导致每次启动重跑 `process.py`（~24s）；穷举真实输出后启动耗时 64s → 42s。
+4. **prebuilt + git hook**（设备配置，非源码改动）：`/data/openpilot/prebuilt` 标记跳过 `build.py` 整段；post-merge/post-checkout hook 在代码变更后自动删除标记触发重编。启动耗时 42s → 26.5s。
 
-> 升级 openpilot 版本时这两处修复可能需要重新应用。
+> 升级 openpilot 版本时这些修复可能需要重新应用。
 
 ## 构建与运行
 
@@ -106,7 +108,7 @@ dp011 是 **dragonpilot** 的单分支 fork —— 基于 openpilot（开源辅�
 
 1. systemd 拉起 `comma.service` → `/usr/comma/comma.sh`（等 `magic` 显示服务就绪）
 2. `launch_chffrplus.sh`：`agnos_init`（AGNOS 版本校验）→ overlay 更新检查（若 `/data/safe_staging/finalized/.overlay_consistent` 存在则安装 overlay）→ `set_tici_hw`（查询 panda MCU 区分 DOS/TRES）→ 挂载 NVMe
-3. `system/manager/build.py` 跑 `scons`：**每次启动都执行**，按 mtime 增量编译。mtime 稳定时 ~14 秒；若源文件 mtime 被刷新则全量重编 ~6 分钟
+3. `system/manager/build.py` 跑 `scons`：**默认每次启动都执行**（按 mtime 增量编译）。本 fork 通过 `/data/openpilot/prebuilt` 标记跳过整段，配合 git hook 在 pull/merge/切分支后自动清除标记触发重编——详见 `CLAUDE.md` 的"启动加速 III"
 4. `managerd`：preimport 所有进程模块 → 按 `should_run` 拉起守护进程 → onroad 后启动 card/controlsd/modeld 等
 
 **启动慢的已知坑**：`updated` 进程（offroad 运行）做 OTA 时 `git reset` 会刷新所有源文件 mtime，导致下次启动 scons 全量重编。本 fork 通过 `DisableUpdates=1` 禁用 OTA 规避——设备配置与效果见根目录 `CLAUDE.md` 的"启动加速"条目。
