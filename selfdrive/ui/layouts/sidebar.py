@@ -125,14 +125,17 @@ class Sidebar(Widget):
     self._net_strength = max(0, min(5, strength.raw + 1)) if strength.raw > 0 else 0
 
   def _update_temperature_status(self, device_state):
+    temp = device_state.maxTempC
     thermal_status = device_state.thermalStatus
 
     if thermal_status == ThermalStatus.green:
-      self._temp_status.update(tr_noop("TEMP"), tr_noop("GOOD"), Colors.GOOD)
+      color = Colors.GOOD
     elif thermal_status == ThermalStatus.yellow:
-      self._temp_status.update(tr_noop("TEMP"), tr_noop("OK"), Colors.WARNING)
+      color = Colors.WARNING
     else:
-      self._temp_status.update(tr_noop("TEMP"), tr_noop("HIGH"), Colors.DANGER)
+      color = Colors.DANGER
+
+    self._temp_status.update(tr_noop("TEMP"), f"{temp:.0f}°C", color)
 
   def _update_connection_status(self, device_state):
     last_ping = device_state.lastAthenaPingTime
