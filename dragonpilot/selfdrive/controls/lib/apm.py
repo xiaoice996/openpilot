@@ -23,16 +23,12 @@ from openpilot.common.realtime import DT_MDL
 # 速度門檻常數 (km/h 轉換為 m/s)
 APM_DEPARTURE_SPEED = 5 * 1000 / 3600   # 5 km/h：起步激烈模式上限
 
-# 場景 2 常數 (前車絕對速度、加速度)
-V_LEAD_RELAX_ENTER = 10 * 1000 / 3600    # 10 km/h：進入前車緩和模式的門檻，同時加入前車須減速狀態
-A_LEAD_RELAX_ENTER = -0.1                # -0.1 m/s^2：前車處於減速狀態的門檻
-
-# 場景 3 常數 (與前車的相對速差)
-V_REL_RELAX_ENTER = 20 * 1000 / 3600     # 20 km/h：速差大於 20 km/h 時，提早進入緩和模式
-V_REL_RELAX_EXIT = 5 * 1000 / 3600       # 5 km/h：速差降至幾乎同步 (5 km/h) 時，才解除緩和模式
-
-# 煞車鎖定門檻 (20 km/h 轉換為 m/s)
-V_EGO_LOCK_DECEL = 20 * 1000 / 3600      # 20 km/h：準備煞停時凍結性格切換，防止目標線跳動
+# [暫時不用] 以下常數保留不影響執行
+V_LEAD_RELAX_ENTER = 10 * 1000 / 3600
+A_LEAD_RELAX_ENTER = -0.1
+V_REL_RELAX_ENTER = 20 * 1000 / 3600
+V_REL_RELAX_EXIT = 5 * 1000 / 3600
+V_EGO_LOCK_DECEL = 20 * 1000 / 3600
 
 # 完全靜止門檻
 V_EGO_STANDSTILL = 0.01                  # 低於 0.01 m/s 視為完全靜止，才準備起步
@@ -84,11 +80,16 @@ class APM:
       else:
         self.v_rel_smoothed = self.v_rel_smoothed * 0.90 + v_rel_raw * 0.10
       
+      # ==========================================
+      # [測試修改] 強制將場景 2 與 場景 3 狀態歸零，停止動態切換
+      self.is_relaxed_mode = False
+      self.is_scene2_standard = False
+      self.is_approaching = False
+      
+      """
       v_rel = self.v_rel_smoothed
       d_req = max(20.0, v_ego * t_follow_relaxed)
 
-      # ==========================================
-      # [核心修正] 低速減速鎖定與距離遲滯區間
       if v_ego < V_EGO_LOCK_DECEL and a_lead <= 0.1:
         pass # 低速鎖定，保持狀態
       else:
@@ -97,7 +98,7 @@ class APM:
           if d_lead >= d_req:
             self.is_relaxed_mode = True
             self.is_scene2_standard = False
-          elif d_lead < (d_req - 5.0):   # [消滅乒乓效應] 增加 5 公尺緩衝區，避免在界線上瘋狂切換
+          elif d_lead < (d_req - 5.0):
             self.is_relaxed_mode = False
             self.is_scene2_standard = True
         elif v_rel <= V_REL_RELAX_EXIT:
@@ -109,6 +110,7 @@ class APM:
           self.is_approaching = True
         elif v_rel <= V_REL_RELAX_EXIT:
           self.is_approaching = False
+      """
       # ==========================================
         
     else:
@@ -117,10 +119,11 @@ class APM:
       self.is_approaching = False
       self.v_rel_smoothed = None  
 
-    # --- 3. 決定最終輸出的模式 (優先級：場景 1 > 場景 2 > 場景 3) ---
+    # --- 3. 決定最終輸出的模式 ---
     if self.is_departing and v_ego < APM_DEPARTURE_SPEED:
       return log.LongitudinalPersonality.aggressive
 
+    # 因為上面已強制設為 False，以下三個條件在此版本將不會觸發
     if self.is_scene2_standard:
       return log.LongitudinalPersonality.standard
 
