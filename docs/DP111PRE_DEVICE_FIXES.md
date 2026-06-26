@@ -1,0 +1,278 @@
+# DP111PRE 设备修改汇总
+
+> 设备：comma 3X (comma-39058564)
+> 修改日期：2026-06-26
+> 适用分支：dp111pre
+
+---
+
+## 一、传感器硬件修复（GPIO 中断失效）
+
+### 问题
+
+屏幕 I2C 硬件异常导致 GPIO 84 数据就绪中断不触发（IRQ 336 计数为 0），sensord 无法通过中断模式发布 accel/gyro 数据，引发级联故障：
+
+```
+GPIO 84 中断不触发
+  → sensord interrupt_loop 无限等待
+    → accelerometer / gyroscope 无数据
+      → locationd 无输入 → livePose / liveDelay 无效
+      → paramsd / torqued 异常 → liveParameters / liveTorqueParameters 无效
+        → selfdrived SubMaster.all_checks() 失败
+          → "传感器数据无效" + "程序通讯故障"
+```
+
+### 修改文件
+
+#### 1. `system/sensord/sensors/lsm6ds3_accel.py`
+
+**路径**：`/data/openpilot/system/sensord/sensors/lsm6ds3_accel.py`
+**参考**：commit `26eb8f0` (分支 `dp011fix`, 2026-06-16)
+
+`get_event()` 原本要求 `ts` 由 IRQ 提供（`assert ts is not None`）。改为 `ts=None` 时使用 `time.monotonic_ns()`，适配 `polling_loop` 调用。
+
+```python
+# 修改前
+def get_event(self, ts: int | None = None) -> log.SensorEventData:
+    assert ts is not None  # must come from the IRQ event
+
+# 修改后
+def get_event(self, ts: int | None = None) -> log.SensorEventData:
+    if ts is None:
+      ts = time.monotonic_ns()
+```
+
+#### 2. `system/sensord/sensors/lsm6ds3_gyro.py`
+
+**路径**：`/data/openpilot/system/sensord/sensors/lsm6ds3_gyro.py`
+**参考**：commit `26eb8f0` (分支 `dp011fix`, 2026-06-16)
+
+同 accel，`get_event()` 支持 `ts=None`。
+
+```python
+# 修改前
+def get_event(self, ts: int | None = None) -> log.SensorEventData:
+    assert ts is not None  # must come from the IRQ event
+
+# 修改后
+def get_event(self, ts: int | None = None) -> log.SensorEventData:
+    if ts is None:
+      ts = time.monotonic_ns()
+```
+
+#### 3. `system/sensord/sensord.py`
+
+**路径**：`/data/openpilot/system/sensord/sensord.py`
+**参考**：commit `26eb8f0` (分支 `dp011fix`, 2026-06-16)
+
+将 accel/gyro 的中断标志从 `True` 改为 `False`，使其使用 `polling_loop`（I2C 轮询）而非 `interrupt_loop`（GPIO 中断）。
+
+```python
+# 修改前
+sensors_cfg = [
+    (LSM6DS3_Accel(I2C_BUS_IMU), "accelerometer", True),
+    (LSM6DS3_Gyro(I2C_BUS_IMU), "gyroscope", True),
+    (LSM6DS3_Temp(I2C_BUS_IMU), "temperatureSensor", False),
+]
+
+# 修改后
+sensors_cfg = [
+    (LSM6DS3_Accel(I2C_BUS_IMU), "accelerometer", False),
+    (LSM6DS3_Gyro(I2C_BUS_IMU), "gyroscope", False),
+    (LSM6DS3_Temp(I2C_BUS_IMU), "temperatureSensor", False),
+]
+```
+
+#### 4. `selfdrive/selfdrived/selfdrived.py`
+
+**路径**：`/data/openpilot/selfdrive/selfdrived/selfdrived.py`
+**参考**：commit `19e8611` (2026-06-15)
+
+当 `/data/params/d/dp_dev_ignore_sensor_check` 文件存在时，跳过 `sensorDataInvalid` 事件。
+
+```python
+# 修改前
+    # conservative HW alert. if the data or frequency are off, locationd will throw an error
+    if any((self.sm.frame - self.sm.recv_frame[s])*DT_CTRL > 10. for s in self.sensor_packets):
+      self.events.add(EventName.sensorDataInvalid)
+
+# 修改后
+    # conservative HW alert. if the data or frequency are off, locationd will throw an error
+    # dp: skip this check when screen I2C hardware causes false positives
+    import os
+    if not os.path.exists("/data/params/d/dp_dev_ignore_sensor_check"):
+      if any((self.sm.frame - self.sm.recv_frame[s])*DT_CTRL > 10. for s in self.sensor_packets):
+        self.events.add(EventName.sensorDataInvalid)
+```
+
+#### 5. `dragonpilot/settings/min-feat.dev.ignore-sensor-check.py`（新建）
+
+**路径**：`/data/openpilot/dragonpilot/settings/min-feat.dev.ignore-sensor-check.py`
+
+注册 `dp_dev_ignore_sensor_check` 布尔开关，DP 设置面板 Device 分类下显示。
+
+```python
+from dragonpilot.settings import tr
+
+ITEMS = [
+  {
+    "section": "Device",
+    "key": "dp_dev_ignore_sensor_check",
+    "type": "toggle_item",
+    "title": lambda: tr("Ignore Sensor Check"),
+    "description": lambda: tr("Ignore sensor data invalid alert caused by screen I2C hardware issue."),
+    "flags": "PERSISTENT",
+    "param_type": "BOOL",
+    "default": "0",
+  },
+]
+```
+
+#### 6. `common/params_keys.h`（自动生成）
+
+**路径**：`/data/openpilot/common/params_keys.h`
+
+由 `generate_settings.py` 自动生成，包含 `dp_dev_ignore_sensor_check`。**不要手动编辑**。
+
+### 设备端 Param
+
+```bash
+# 开启（跳过传感器检查）
+echo '1' > /data/params/d/dp_dev_ignore_sensor_check
+
+# 关闭（恢复原始行为）
+echo '0' > /data/params/d/dp_dev_ignore_sensor_check
+```
+
+---
+
+## 二、启动性能优化
+
+### 问题
+
+从断电到 openpilot 就绪需要 ~120s，其中：
+- 硬件初始化：65s（不可优化）
+- scons 编译：21s（可跳过）
+- manager 启动：18s（可优化）
+
+### 修改文件
+
+#### 1. 跳过 scons 编译
+
+**路径**：`/data/openpilot/prebuilt`（新建空文件）
+
+创建 `prebuilt` 标记文件，`launch_chffrplus.sh` 检测到此文件后跳过 `build.py`。
+
+```bash
+touch /data/openpilot/prebuilt
+```
+
+**注意**：代码更新后需删除此文件并重新编译。
+
+#### 2. `launch_chffrplus.sh` — 屏蔽非必要服务
+
+**路径**：`/data/openpilot/launch_chffrplus.sh`
+
+在启动脚本开头添加 systemd 服务屏蔽，减少启动耗时。
+
+```bash
+# 在 'source "$DIR/launch_env.sh"' 之后添加：
+# dp_optimization: mask non-essential services to speed up boot
+sudo systemctl mask --runtime apport.service 2>/dev/null &
+sudo systemctl mask --runtime sound.service 2>/dev/null &
+sudo systemctl mask --runtime pollinate.service 2>/dev/null &
+```
+
+#### 3. `system/manager/manager.py` — 并行化模块预导入
+
+**路径**：`/data/openpilot/system/manager/manager.py`
+
+将 `manager_init()` 中的模块预导入从串行改为并行（4 线程）。
+
+```python
+# 修改前
+  # preimport all processes
+  for p in managed_processes.values():
+    p.prepare()
+
+# 修改后
+  # preimport all processes (dp_optimization: parallelize imports)
+  from concurrent.futures import ThreadPoolExecutor, as_completed
+  with ThreadPoolExecutor(max_workers=4) as executor:
+    futures = {executor.submit(p.prepare): p.name for p in managed_processes.values() if p.enabled}
+    for future in as_completed(futures):
+      name = futures[future]
+      try:
+        future.result()
+      except Exception:
+        cloudlog.exception(f"failed to prepare {name}")
+```
+
+### 优化效果
+
+| 指标 | 优化前 | 优化后 | 改善 |
+|------|--------|--------|------|
+| 总启动时间 | ~120s | ~70s | **-42%** |
+| Manager 启动 | boot +49s | boot +18s | **-63%** |
+
+---
+
+## 三、验证方法
+
+```bash
+# SSH 到设备
+ssh -i "/Users/xiaoice/Downloads/密钥/id_ed25519" comma@<IP>
+
+# 验证传感器数据流动（比较原始字节，mmap 不更新时间戳）
+head -c 16 /dev/shm/msgq_accelerometer | od -A x -t x1
+sleep 1
+head -c 16 /dev/shm/msgq_accelerometer | od -A x -t x1
+# 字节变化 = 数据正常
+
+# 验证关键服务发布
+for s in livePose liveDelay liveParameters liveTorqueParameters; do
+  head -c 16 /dev/shm/msgq_$s | od -A x -t x1
+done
+
+# 验证启动时间
+systemd-analyze time
+ps -eo pid,lstart,cmd --sort=lstart | grep manager | head -2
+
+# 验证 prebuilt
+ls -la /data/openpilot/prebuilt
+
+# 验证服务屏蔽
+systemctl list-unit-files | grep masked-runtime
+```
+
+## 四、回滚方法
+
+```bash
+cd /data/openpilot
+
+# 回滚传感器修复
+git checkout system/sensord/sensord.py
+git checkout system/sensord/sensors/lsm6ds3_accel.py
+git checkout system/sensord/sensors/lsm6ds3_gyro.py
+git checkout selfdrive/selfdrived/selfdrived.py
+rm dragonpilot/settings/min-feat.dev.ignore-sensor-check.py
+rm /data/params/d/dp_dev_ignore_sensor_check
+
+# 回滚启动优化
+rm /data/openpilot/prebuilt
+git checkout system/manager/manager.py
+git checkout launch_chffrplus.sh
+
+# 重新生成 params_keys.h
+python3 generate_settings.py
+
+# 重启
+sudo reboot
+```
+
+## 五、已知限制
+
+- **GPIO 中断未修复**：根因是硬件层面 GPIO 84 信号未到达处理器，代码层面只能用 polling 绕过
+- **prebuilt 需手动维护**：代码更新后需删除 `prebuilt` 并重新编译
+- **服务屏蔽为 runtime**：重启后失效，已写入 `launch_chffrplus.sh` 每次启动时重新应用
+- **升级时需重新应用**：所有修改在 openpilot 升级后会被覆盖

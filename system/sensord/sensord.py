@@ -19,6 +19,7 @@ from openpilot.system.sensord.sensors.lsm6ds3_temp import LSM6DS3_Temp
 
 I2C_BUS_IMU = 1
 
+
 def interrupt_loop(sensors: list[tuple[Sensor, str, bool]], event) -> None:
   pm = messaging.PubMaster([service for sensor, service, interrupt in sensors if interrupt])
 
@@ -95,8 +96,8 @@ def main() -> None:
   config_realtime_process([1, ], 1)
 
   sensors_cfg = [
-    (LSM6DS3_Accel(I2C_BUS_IMU), "accelerometer", True),
-    (LSM6DS3_Gyro(I2C_BUS_IMU), "gyroscope", True),
+    (LSM6DS3_Accel(I2C_BUS_IMU), "accelerometer", False),
+    (LSM6DS3_Gyro(I2C_BUS_IMU), "gyroscope", False),
     (LSM6DS3_Temp(I2C_BUS_IMU), "temperatureSensor", False),
   ]
 

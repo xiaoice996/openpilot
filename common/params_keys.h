@@ -163,4 +163,12 @@ inline static std::unordered_map<std::string, ParamKeyAttributes> keys = {
     {"dp_ui_hide_hud_speed_kph", {PERSISTENT, INT, "0"}},
     {"dp_ui_lead", {PERSISTENT, INT, "0"}},
     {"dp_ui_rainbow", {PERSISTENT, BOOL, "0"}},
+    {"dp_dev_ignore_sensor_check", {PERSISTENT, BOOL, "0"}},
+    {"dp_htd_enabled", {PERSISTENT, BOOL, "0"}},
+    {"dp_htd_turn_angle_threshold", {PERSISTENT, INT, "60"}},
+    {"AccelPersonalityEnabled", {PERSISTENT, BOOL, "0"}},
+    {"AccelPersonality", {PERSISTENT, INT, "1"}},
+    {"dp_lon_dtsc", {PERSISTENT, BOOL, "0"}},
+    {"AccelPersonalityEnabled", {PERSISTENT, BOOL, "0"}},
+    {"AccelPersonality", {PERSISTENT, INT, "1"}},
 };

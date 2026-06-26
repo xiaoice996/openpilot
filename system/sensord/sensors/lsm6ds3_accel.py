@@ -62,7 +62,8 @@ class LSM6DS3_Accel(Sensor):
     ))
 
   def get_event(self, ts: int | None = None) -> log.SensorEventData:
-    assert ts is not None  # must come from the IRQ event
+    if ts is None:
+      ts = time.monotonic_ns()
 
     # Check if data is ready since IRQ is shared with gyro
     status_reg = self.read(self.LSM6DS3_ACCEL_I2C_REG_STAT_REG, 1)[0]

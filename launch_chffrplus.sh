@@ -4,6 +4,12 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null && pwd )"
 
 source "$DIR/launch_env.sh"
 
+# dp_optimization: mask non-essential services to speed up boot
+# These run on every boot; masked-runtime means they only persist until reboot
+sudo systemctl mask --runtime apport.service 2>/dev/null &
+sudo systemctl mask --runtime sound.service 2>/dev/null &
+sudo systemctl mask --runtime pollinate.service 2>/dev/null &
+
 function agnos_init {
   # TODO: move this to agnos
   sudo rm -f /data/etc/NetworkManager/system-connections/*.nmmeta

@@ -107,9 +107,16 @@ def manager_init() -> None:
                        dirty=build_metadata.openpilot.is_dirty,
                        device=HARDWARE.get_device_type())
 
-  # preimport all processes
-  for p in managed_processes.values():
-    p.prepare()
+  # preimport all processes (dp_optimization: parallelize imports)
+  from concurrent.futures import ThreadPoolExecutor, as_completed
+  with ThreadPoolExecutor(max_workers=4) as executor:
+    futures = {executor.submit(p.prepare): p.name for p in managed_processes.values() if p.enabled}
+    for future in as_completed(futures):
+      name = futures[future]
+      try:
+        future.result()
+      except Exception:
+        cloudlog.exception(f"failed to prepare {name}")
 
 
 def manager_cleanup() -> None:
