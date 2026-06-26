@@ -33,7 +33,7 @@ CAN 总线 → pandad → card.py (100Hz) → controlsd (100Hz) → carControl �
 
 ## 关键集成点（DP 对上游的修改）
 
-只改了 3 个文件，其余全部通过动态 import 注入：
+DP 核心功能只改 3 个文件，其余全部通过动态 import 注入：
 
 1. **`selfdrive/car/card.py`** — 读取 DP params 构建 DPFlags 位掩码，传给 `get_car()`；发布 `carStateExt`（含 `lkas_on`）
 2. **`selfdrive/controls/controlsd.py`** — 集成 HTD（人机转向检测）+ ALKA（常用车道保持）；发布 `controlsStateExt`
@@ -61,6 +61,19 @@ from dragonpilot.selfdrive.controls.lib.longitudinal_planner import Longitudinal
 - 参数键以 `dp_` 前缀命名，分类：`dp_lat_*`（横向）、`dp_lon_*`（纵向）、`dp_toyota_*`/`dp_vag_*`/`dp_honda_*`（品牌）、`dp_ui_*`（UI）、`dp_dev_*`（开发者）
 - **不要手动编辑 `common/params_keys.h`**，它是构建产物
 
+## 设备特定修改
+
+除 DP 核心 3 文件外，以下文件因设备硬件问题（GPIO 中断失效、启动慢）被修改，详见 `docs/DP111PRE_DEVICE_FIXES.md`：
+
+- `system/sensord/sensord.py` — accel/gyro 改用 polling 模式（`interrupt=True→False`）
+- `system/sensord/sensors/lsm6ds3_accel.py` / `lsm6ds3_gyro.py` — `get_event()` 支持 `ts=None`
+- `selfdrive/selfdrived/selfdrived.py` — 文件检查跳过 sensorDataInvalid 误报
+- `system/manager/manager.py` — 并行化模块预导入
+- `launch_chffrplus.sh` — 屏蔽非必要 systemd 服务
+- **设备端**：`touch /data/openpilot/prebuilt` 跳过 scons 编译
+
+**注意**：升级 openpilot 后这些修改会被覆盖，需重新应用。
+
 ## 红线
 
 - **不手动编辑生成文件**：`common/params_keys.h` 由 `generate_settings.py` 生成
@@ -82,3 +95,5 @@ from dragonpilot.selfdrive.controls.lib.longitudinal_planner import Longitudinal
 | 开发环境搭建 | `docs/DEVELOPMENT.md` |
 | 安全说明 | `docs/SAFETY.md` |
 | 上游 openpilot README | `README_OPENPILOT.md` |
+| 设备修复记录 | `docs/DP111PRE_DEVICE_FIXES.md` |
+| 启动性能分析 | `docs/BOOT_ANALYSIS.md` |
