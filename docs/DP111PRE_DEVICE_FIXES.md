@@ -157,17 +157,30 @@ echo '0' > /data/params/d/dp_dev_ignore_sensor_check
 
 ### 修改文件
 
-#### 1. 跳过 scons 编译
+#### 1. 跳过 scons 编译（Quick Start 开关）
 
-**路径**：`/data/openpilot/prebuilt`（新建空文件）
+**路径**：`/data/openpilot/launch_chffrplus.sh`
 
-创建 `prebuilt` 标记文件，`launch_chffrplus.sh` 检测到此文件后跳过 `build.py`。
+通过 `dp_dev_quick_start` 开关控制是否跳过 `build.py`。开启时自动创建 `prebuilt` 标记文件，关闭时删除。
 
 ```bash
-touch /data/openpilot/prebuilt
+# launch_chffrplus.sh 中的逻辑
+if [ -f /data/params/d/dp_dev_quick_start ] && [ "$(cat /data/params/d/dp_dev_quick_start)" = "1" ]; then
+  touch $DIR/prebuilt
+else
+  rm -f $DIR/prebuilt
+fi
 ```
 
-**注意**：代码更新后需删除此文件并重新编译。
+**设置文件**：`dragonpilot/settings/min-feat.dev.quick-start.py`
+
+```bash
+# 设备端手动控制
+echo '1' > /data/params/d/dp_dev_quick_start  # 开启（跳过编译）
+echo '0' > /data/params/d/dp_dev_quick_start  # 关闭（正常编译）
+```
+
+**注意**：代码更新后需关闭此开关并重启，让 scons 重新编译。
 
 #### 2. `launch_chffrplus.sh` — 屏蔽非必要服务
 
@@ -238,8 +251,9 @@ done
 systemd-analyze time
 ps -eo pid,lstart,cmd --sort=lstart | grep manager | head -2
 
-# 验证 prebuilt
-ls -la /data/openpilot/prebuilt
+# 验证 Quick Start 开关
+cat /data/params/d/dp_dev_quick_start 2>/dev/null || echo "not set"
+ls -la /data/openpilot/prebuilt 2>/dev/null || echo "no prebuilt"
 
 # 验证服务屏蔽
 systemctl list-unit-files | grep masked-runtime
@@ -260,6 +274,7 @@ rm /data/params/d/dp_dev_ignore_sensor_check
 
 # 回滚启动优化
 rm /data/openpilot/prebuilt
+rm dragonpilot/settings/min-feat.dev.quick-start.py
 git checkout system/manager/manager.py
 git checkout launch_chffrplus.sh
 
@@ -273,6 +288,6 @@ sudo reboot
 ## 五、已知限制
 
 - **GPIO 中断未修复**：根因是硬件层面 GPIO 84 信号未到达处理器，代码层面只能用 polling 绕过
-- **prebuilt 需手动维护**：代码更新后需删除 `prebuilt` 并重新编译
+- **prebuilt 由 Quick Start 开关控制**：代码更新后需关闭 `dp_dev_quick_start` 并重启
 - **服务屏蔽为 runtime**：重启后失效，已写入 `launch_chffrplus.sh` 每次启动时重新应用
 - **升级时需重新应用**：所有修改在 openpilot 升级后会被覆盖

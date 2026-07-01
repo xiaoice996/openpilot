@@ -8,22 +8,21 @@ When merging feature branches into `full` branch, conflicts in `settings.py` and
 
 ## Solution
 
-Each feature branch has its own YAML file. A generator script scans all YAMLs and produces `settings.py` and `params_keys.h`.
+Each feature branch has its own `.py` file. A generator script scans all `.py` files and produces `params_keys.h`.
 
 ```
-dragonpilot/settings/           # directory for YAML files (one per feature branch)
-  min-feat-lat-alka.yaml       # from min-feat/lat/alka
-  min-feat-ui-torque-bar.yaml  # from min-feat/ui/torque-bar
-  brands-toyota.yaml           # from brands/toyota
+dragonpilot/settings/           # directory for .py files (one per feature branch)
+  min-feat.lat.alka-v2.py      # from min-feat/lat/alka
+  min-feat.ui.rainbow-path.py  # from min-feat/ui/rainbow-path
+  brand.toyota.door-auto-lock-unlock.py  # from brands/toyota
 
 generate_settings.py           # generator script
 ```
 
-**Note:** Each YAML file is named after the branch, and can contain settings for ANY section (Lateral, Longitudinal, UI, Device, etc.). One feature branch may need settings in multiple sections - all are defined in that branch's single YAML file.
+**Note:** Each `.py` file is named after the branch, and can contain settings for ANY section (Lateral, Longitudinal, UI, Device, etc.). One feature branch may need settings in multiple sections - all are defined in that branch's single `.py` file.
 
-When building, the generator scans `dragonpilot/settings/*.yaml` and outputs:
+When building, the generator scans `dragonpilot/settings/*.py` and outputs:
 ```
-dragonpilot/settings.py        # generated
 common/params_keys.h           # generated
 ```
 

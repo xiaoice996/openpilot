@@ -69,8 +69,8 @@ from dragonpilot.selfdrive.controls.lib.longitudinal_planner import Longitudinal
 - `system/sensord/sensors/lsm6ds3_accel.py` / `lsm6ds3_gyro.py` — `get_event()` 支持 `ts=None`
 - `selfdrive/selfdrived/selfdrived.py` — 文件检查跳过 sensorDataInvalid 误报
 - `system/manager/manager.py` — 并行化模块预导入
-- `launch_chffrplus.sh` — 屏蔽非必要 systemd 服务
-- **设备端**：`touch /data/openpilot/prebuilt` 跳过 scons 编译
+- `launch_chffrplus.sh` — 屏蔽非必要 systemd 服务 + Quick Start 开关控制 scons 编译
+- **设备端**：`echo '1' > /data/params/d/dp_dev_quick_start` 跳过 scons 编译（设置面板 → Device → Quick Start）
 
 **注意**：升级 openpilot 后这些修改会被覆盖，需重新应用。
 

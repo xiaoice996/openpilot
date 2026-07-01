@@ -242,6 +242,13 @@ function launch {
   # write tmux scrollback to a file
   tmux capture-pane -pq -S-1000 > /tmp/launch_log
 
+  # Quick Start: create/remove prebuilt marker based on params
+  if [ -f /data/params/d/dp_dev_quick_start ] && [ "$(cat /data/params/d/dp_dev_quick_start)" = "1" ]; then
+    touch $DIR/prebuilt
+  else
+    rm -f $DIR/prebuilt
+  fi
+
   # start manager
   cd system/manager
   if [ ! -f $DIR/prebuilt ]; then

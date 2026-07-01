@@ -126,11 +126,18 @@ class Sidebar(Widget):
 
   def _update_temperature_status(self, device_state):
     thermal_status = device_state.thermalStatus
+    cpu_temps = device_state.cpuTempC
+
+    if cpu_temps:
+      avg_temp = sum(cpu_temps) / len(cpu_temps)
+      temp_str = f"{avg_temp:.0f}°C"
+    else:
+      temp_str = "--°C"
 
     if thermal_status == ThermalStatus.ok:
-      self._temp_status.update(tr_noop("TEMP"), tr_noop("GOOD"), Colors.GOOD)
+      self._temp_status.update(tr_noop("TEMP"), temp_str, Colors.GOOD)
     else:
-      self._temp_status.update(tr_noop("TEMP"), tr_noop("HIGH"), Colors.DANGER)
+      self._temp_status.update(tr_noop("TEMP"), temp_str, Colors.DANGER)
 
   def _update_connection_status(self, device_state):
     last_ping = device_state.lastAthenaPingTime
