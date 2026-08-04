@@ -70,6 +70,7 @@ from dragonpilot.selfdrive.controls.lib.longitudinal_planner import Longitudinal
 - `selfdrive/selfdrived/selfdrived.py` — 文件检查跳过 sensorDataInvalid 误报
 - `system/manager/manager.py` — 并行化模块预导入
 - `launch_chffrplus.sh` — 屏蔽非必要 systemd 服务 + Quick Start 开关控制 scons 编译
+- `selfdrive/pandad/pandad.py` — `get_expected_signature()` 固件缺失/损坏（<128B）时自动 scons 构建（迁移自 3xl 分支，防 Quick Start 跳过编译后 pandad 启动失败）；主循环 reset 后等待 panda 回到正常模式（`bootstub=False`）再决定是否刷写，不再交替调用 `recover_internal_panda()`（修复开机白刷固件、上线 41s→7s）
 - **设备端**：`echo '1' > /data/params/d/dp_dev_quick_start` 跳过 scons 编译（设置面板 → Device → Quick Start）
 
 **注意**：升级 openpilot 后这些修改会被覆盖，需重新应用。
@@ -96,4 +97,5 @@ from dragonpilot.selfdrive.controls.lib.longitudinal_planner import Longitudinal
 | 安全说明 | `docs/SAFETY.md` |
 | 上游 openpilot README | `README_OPENPILOT.md` |
 | 设备修复记录 | `docs/DP111PRE_DEVICE_FIXES.md` |
+| pandad 签名读取与上线慢修复 | `docs/pandad_issue_and_fix.md` |
 | 启动性能分析 | `docs/BOOT_ANALYSIS.md` |

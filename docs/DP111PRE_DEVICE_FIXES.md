@@ -1,7 +1,7 @@
 # DP111PRE 设备修改汇总
 
 > 设备：comma 3X (comma-39058564)
-> 修改日期：2026-06-26
+> 修改日期：2026-06-26（传感器修复 / 启动优化）；2026-08-04（panda 固件自动构建 + 上线慢修复）
 > 适用分支：dp111pre
 
 ---
@@ -277,6 +277,7 @@ rm /data/openpilot/prebuilt
 rm dragonpilot/settings/min-feat.dev.quick-start.py
 git checkout system/manager/manager.py
 git checkout launch_chffrplus.sh
+git checkout selfdrive/pandad/pandad.py
 
 # 重新生成 params_keys.h
 python3 generate_settings.py
@@ -291,3 +292,65 @@ sudo reboot
 - **prebuilt 由 Quick Start 开关控制**：代码更新后需关闭 `dp_dev_quick_start` 并重启
 - **服务屏蔽为 runtime**：重启后失效，已写入 `launch_chffrplus.sh` 每次启动时重新应用
 - **升级时需重新应用**：所有修改在 openpilot 升级后会被覆盖
+
+---
+
+## 六、panda 固件自动构建（迁移自 3xl 分支，2026-08-04）
+
+### 问题
+
+Quick Start 开关（`dp_dev_quick_start`）跳过 scons 编译时，`panda/board/obj/` 固件可能缺失，`selfdrive/pandad/pandad.py` 的 `get_expected_signature()` 会因文件不存在抛异常，pandad 循环失败无法接管车辆。
+
+### 修改文件
+
+`selfdrive/pandad/pandad.py` — `get_expected_signature()` 在固件缺失或 <128 字节时，用 `scons -C BASEDIR <target>` 现场构建 `panda_h7.bin.signed` 后再取签名（构建失败抛异常，由 `main()` 捕获重试）。
+
+### 来源与提交
+
+- 3xl 分支（sunnypilot，jihulab mr-one/openpilot）提交 `fd4701e`（2026-08-04）
+- 迁移提交 `fd27160`，本地分支 `dp111preup1`，已推送 https://github.com/xiaoice996/openpilot.git
+- **后续补充**：pandad 开机慢问题（每次开机白刷固件）及主循环等待修复见 `docs/pandad_issue_and_fix.md`，修复已应用到 `selfdrive/pandad/pandad.py`（见下文第七节）
+- **未迁移项**：`get_type()` 硬编码返回 TRES（安全 hack，不建议）、固件产物入库（与 Quick Start 机制冲突）
+
+### 回滚
+
+`git checkout selfdrive/pandad/pandad.py`
+
+---
+
+## 七、pandad 开机上线慢修复（等待 panda 正常启动后再决定刷写，2026-08-04）
+
+### 问题
+
+设备每次开机后 "Panda online" 需要约 41 秒，实测 pandad wrapper 启动到真正 pandad 上线约 41 秒，且每次开机 panda 都被判定为 bootstub 并重复刷写固件。
+
+### 根因
+
+- GPIO reset 后内部 panda 需要约 **5.5 秒** 才进入正常固件。
+- `recover_internal_panda()` 会把 panda 强制送进 bootloader，实测 **20 秒以上** 无法恢复。
+- 旧 pandad 在 reset 后立即查询，看到 panda 还在 bootstub 就判定固件过期并执行刷写（约 9 秒）。
+- `PandaDFU.list()` 在 panda 启动过程中还会阻塞约 7 秒。
+
+### 修改文件
+
+`selfdrive/pandad/pandad.py` — 主循环：
+
+1. **只执行 `HARDWARE.reset_internal_panda()`**，不再交替调用 `recover_internal_panda()`（避免把 panda 送进 bootloader）。
+2. **reset 后轮询等待**（每 0.5s 一次，最多 16 次 ≈ 8s）：`Panda.list()` 能查到 panda 且 `bootstub=False`（正常模式）才继续，避免在 panda 启动过程中误判为 bootstub 而刷写。
+3. 只有 panda 确实等不到（仍在 bootstub 或 DFU）时才执行 DFU 恢复；若 panda 真是 bootstub 或签名不一致，仍走原有 `flash_panda()` 正常刷写逻辑。
+
+`get_expected_signature()`（含 Quick Start 跳过编译时的 scons 自动构建）保持原样，不做修改。
+
+### 验证结果（设备实测）
+
+| 项目 | 修复前 | 修复后 |
+| --- | --- | --- |
+| pandad wrapper 到真正 pandad | 约 41 秒 | 约 7 秒 |
+| panda 状态 | 每次开机 bootstub 并刷写 | 正常固件，无重复刷写 |
+| 签名读取 | 保持原样 | 保持原样，不做修改 |
+
+详见 `docs/pandad_issue_and_fix.md`。
+
+### 回滚
+
+`git checkout selfdrive/pandad/pandad.py`
