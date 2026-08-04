@@ -89,16 +89,24 @@ def main() -> None:
       cloudlog.event("pandad.flash_and_connect", count=count)
       pass  # PandaSignatures not in params_keys
 
-      # FIX 3: 用智慧型重試邏輯取代每次固定 reset/recover
-      #         只有在確認找不到 panda 時才做 reset/recover
+      # FIX 3: 找不到 panda 時只做 reset，等待內部 panda 回到正常模式再決定是否刷寫
+      #         不再用 recover_internal_panda() 強制送進 bootloader，避免每次開機白刷韌體
       if no_internal_panda_count > 0:
-        if no_internal_panda_count == 3:
-          cloudlog.info("No pandas found, putting internal panda into DFU")
-          HARDWARE.recover_internal_panda()
-        else:
-          cloudlog.info("No pandas found, resetting internal panda")
-          HARDWARE.reset_internal_panda()
-        time.sleep(3)  # wait to come back up
+        cloudlog.info("No pandas found, resetting internal panda")
+        HARDWARE.reset_internal_panda()
+        # The internal panda takes a few seconds to boot its app after a reset.
+        # Wait for it to come back in normal mode before deciding to flash.
+        panda_serials: list[str] = []
+        for _ in range(16):
+          panda_serials = Panda.list()
+          if len(panda_serials) == 1:
+            try:
+              with Panda(panda_serials[0]) as p:
+                if not p.bootstub:
+                  break
+            except Exception:
+              pass
+          time.sleep(0.5)
 
       # Flash all Pandas in DFU mode
       dfu_serials = PandaDFU.list()
