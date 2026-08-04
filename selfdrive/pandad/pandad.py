@@ -15,6 +15,11 @@ from openpilot.common.swaglog import cloudlog
 
 def get_expected_signature() -> bytes:
   fn = os.path.join(FW_PATH, McuType.H7.config.app_fn)
+  if not os.path.isfile(fn) or os.path.getsize(fn) < 128:
+    cloudlog.warning(f"Panda firmware {fn} missing or too small, building...")
+    target = os.path.relpath(fn, BASEDIR)
+    env = {**os.environ, "PWD": BASEDIR}
+    subprocess.run(["scons", "-C", BASEDIR, target], check=True, env=env)
   return Panda.get_signature_from_firmware(fn)
 
 def flash_panda(panda_serial: str):
