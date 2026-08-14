@@ -75,6 +75,10 @@ from dragonpilot.selfdrive.controls.lib.longitudinal_planner import Longitudinal
 
 **注意**：升级 openpilot 后这些修改会被覆盖，需重新应用。
 
+## 功能型上游修改（非 DP 核心）
+
+- `opendbc_repo/opendbc/car/toyota/toyotacan.py` — `create_accel_command()` 中 `ALLOW_LONG_PRESS` 1→2：丰田短按 +5（与 sunnypilot 同款，提交 `0954c9e`）。同步/升级 opendbc 会被覆盖，需重新应用；若要做成可配置项，惯例是加 `dp_toyota_*` 参数动态取值。
+
 ## 红线
 
 - **不手动编辑生成文件**：`common/params_keys.h` 由 `generate_settings.py` 生成
